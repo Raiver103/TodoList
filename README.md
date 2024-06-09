@@ -1,7 +1,8 @@
 <h1 align="center">Todo List API</h1>
 
-## About
-* Todo List API like Trello
+Todo List like Trello  
+
+![image](https://github.com/Raiver103/TodoList/assets/80199038/2a435bee-237b-4c84-adbe-9b4750e3bc06)
 
 ## Technical tools
 * Nest js
