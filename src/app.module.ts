@@ -28,7 +28,7 @@ import { Task } from './tasks/task.entity';
       autoLoadEntities: true,
     }),   
     UsersModule, ProjectsModule, AuthModule, ColumnsModule, TasksModule
-  ] 
+  ]  
 })
 export class AppModule { 
 }  
