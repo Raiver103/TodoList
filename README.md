@@ -1,3 +1,13 @@
+<h1 align="center">Todo List API</h1>
+
+## About
+* Todo List API like Trello
+
+## Technical tools
+* Nest js
+* PostgreSQL
+* TypeORM
+
 ## Installation
 
 ```bash
