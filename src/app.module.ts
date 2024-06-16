@@ -10,6 +10,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { Project } from './projects/project.entity';
 import { ColumnEntity } from './columns/column.entity';
 import { Task } from './tasks/task.entity';
+import { TaskFieldsModule } from './task-fields/task-fields.module';
 
 @Module({
   imports: [ 
@@ -27,8 +28,9 @@ import { Task } from './tasks/task.entity';
       synchronize: true,
       autoLoadEntities: true,
     }),   
-    UsersModule, ProjectsModule, AuthModule, ColumnsModule, TasksModule
+    UsersModule, ProjectsModule, AuthModule, ColumnsModule, TasksModule, TaskFieldsModule
   ]  
 })
 export class AppModule { 
 }  
+ 

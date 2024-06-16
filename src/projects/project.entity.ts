@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ColumnEntity } from 'src/columns/column.entity';
+import { TaskField } from 'src/task-fields/entities/task-field.entity';
 import { User } from 'src/users/user.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm'; 
 
@@ -29,4 +30,7 @@ export class Project {
   @ApiProperty( { description: "columns" } )
   @OneToMany(() => ColumnEntity, (column) => column.project, { cascade: true, onDelete: 'CASCADE' })
   columns: ColumnEntity[];
+
+  @OneToMany(() => TaskField, field => field.project)
+  fields: TaskField[];
 }

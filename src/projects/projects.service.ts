@@ -23,8 +23,13 @@ export class ProjectsService {
       .createQueryBuilder('project')  
       .where('project.userId = :userId', { userId: user.id })  
       .leftJoinAndSelect('project.columns', 'column') 
-      .leftJoinAndSelect('column.tasks', 'task')  
+      .leftJoinAndSelect('column.tasks', 'task')   
+      .leftJoinAndSelect('task.stringFieldValues', 'stringFieldValue')
+      .leftJoinAndSelect('stringFieldValue.taskField', 'stringTaskField')
+      .leftJoinAndSelect('task.numberFieldValues', 'numberFieldValue')
+      .leftJoinAndSelect('numberFieldValue.taskField', 'numberTaskField')
       .getMany();  
+
       return projects;
   }
 
@@ -33,14 +38,19 @@ export class ProjectsService {
       .createQueryBuilder('project')
       .where('project.id = :id', { id })
       .andWhere('project.userId = :userId', { userId: user.id })
-      .leftJoinAndSelect('project.columns', 'column') 
+      .leftJoinAndSelect('project.columns', 'column')
       .leftJoinAndSelect('column.tasks', 'task')
+      .leftJoinAndSelect('task.stringFieldValues', 'stringFieldValue')
+      .leftJoinAndSelect('stringFieldValue.taskField', 'stringTaskField')
+      .leftJoinAndSelect('task.numberFieldValues', 'numberFieldValue')
+      .leftJoinAndSelect('numberFieldValue.taskField', 'numberTaskField')
       .getOne();
-      
+       
     if (!project) {
       throw new NotFoundException(`Project #${id} not found`);
     }
-    return project;
+    
+    return project; 
   }
 
   async update(user: User, updateData: CreateProjectDto, id: number) {

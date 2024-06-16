@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, ParseIntPipe, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -20,9 +20,18 @@ export class TasksController {
   createTask(
     @Req() req,
     @Body() createTaskDto: CreateTaskDto, 
-    @Param('columnId') columnId: number 
+    @Param('columnId', ParseIntPipe) columnId: number 
   ) {  
     return this.tasksService.create(req.user, createTaskDto, columnId);
+  }
+
+  @ApiOperation( { summary:"Get task" } ) 
+  @Get(':taskId')
+  getTask(
+    @Req() req, 
+    @Param('taskId', ParseIntPipe) taskId: number 
+  ) {  
+    return this.tasksService.get(req.user, taskId);
   }
   
   @ApiOperation( { summary:"Update task" } ) 
@@ -30,7 +39,7 @@ export class TasksController {
   updateTask(
     @Req() req,
     @Body() updateTaskDto: CreateTaskDto,
-    @Param('taskId') taskId: number 
+    @Param('taskId', ParseIntPipe) taskId: number 
   ) {   
     return this.tasksService.update(req.user, updateTaskDto, taskId );
   } 
@@ -39,7 +48,7 @@ export class TasksController {
   @Delete(':taskId')
   removeTask(
     @Req() req, 
-    @Param('taskId') taskId: number
+    @Param('taskId', ParseIntPipe) taskId: number
   ) { 
     return this.tasksService.remove(req.user, taskId );
   }
@@ -49,8 +58,8 @@ export class TasksController {
   @UseGuards(JwtAuthGuard)
   async moveTask(
     @Req() req, 
-    @Param('taskId') taskId: number,
-    @Param('columnId') newColumnId: number,
+    @Param('taskId', ParseIntPipe) taskId: number,
+    @Param('columnId', ParseIntPipe) newColumnId: number,
     @Body() newOrder: MoveTaskDto,
   ) { 
 

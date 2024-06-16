@@ -6,15 +6,25 @@ import { ProjectsService } from 'src/projects/projects.service';
 import { ColumnEntity } from 'src/columns/column.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { User } from 'src/users/user.entity';
+import { TaskFieldStringValue } from 'src/task-fields/entities/task-field-string-value.entity';
+import { TaskFieldNumberValue } from 'src/task-fields/entities/task-field-number-value.entity';
+import { TaskField } from 'src/task-fields/entities/task-field.entity';
 
 @Injectable()
 export class TasksService {
+
   
   constructor(
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,
     @InjectRepository(ColumnEntity)
-    private columnsRepository: Repository<ColumnEntity> 
+    private columnsRepository: Repository<ColumnEntity>,
+    @InjectRepository(TaskFieldStringValue)
+    private stringFieldValuesRepository: Repository<TaskFieldStringValue>,
+    @InjectRepository(TaskFieldNumberValue)
+    private numberFieldValuesRepository: Repository<TaskFieldNumberValue>,
+    @InjectRepository(TaskField)
+    private taskFieldsRepository: Repository<TaskField>,
   ) {}
 
   async create(user: User, createTaskDto: CreateTaskDto, columnId: number) {  
@@ -41,7 +51,48 @@ export class TasksService {
       order: await this.getNextTaskOrder(columnId) 
     });
     
-    return this.tasksRepository.save(task);
+    const savedTask = await this.tasksRepository.save(task);
+    const fields = await this.taskFieldsRepository.find({ where: { project: column.project } });
+
+    for (const field of fields) {
+      if (createTaskDto.stringFields && createTaskDto.stringFields[field.id]) {
+        await this.stringFieldValuesRepository.save({
+          task: savedTask,
+          taskField: field,
+          value: createTaskDto.stringFields[field.id],
+        });
+      } else if (createTaskDto.numberFields && createTaskDto.numberFields[field.id]) {
+        await this.numberFieldValuesRepository.save({
+          task: savedTask,
+          taskField: field,
+          value: createTaskDto.numberFields[field.id],
+        });
+      }
+    }
+    
+    return savedTask;
+}
+
+  async get(user: User, taskId: number) {
+    const task = await this.tasksRepository.findOne({
+      where: {
+        id: taskId,
+        column: {
+          project: {
+            user:{ 
+              id: user.id,
+            }
+          },
+        },
+      },
+      relations: ['column', 'column.project', 'column.project.user', 'stringFieldValues', 'numberFieldValues'] 
+    });  
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return task;
   }
 
   async update(user: User, dto: CreateTaskDto, taskId: number){ 
@@ -63,8 +114,39 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    Object.assign(task, dto);
-    return this.tasksRepository.save(task);
+    Object.assign(task, dto);const fields = await this.taskFieldsRepository.find({ where: { project: task.column.project } });
+
+    const savedTask = await this.tasksRepository.save(task);
+
+    for (const field of fields) {
+      if (field.type === 'string' && dto.stringFields[field.id]) {
+        let fieldValue = await this.stringFieldValuesRepository.findOne({ where: { task, taskField: field } });
+        if (fieldValue) {
+          fieldValue.value = dto.stringFields[field.id];
+        } else {
+          fieldValue = this.stringFieldValuesRepository.create({
+            task,
+            taskField: field,
+            value: dto.stringFields[field.id],
+          });
+        }
+        await this.stringFieldValuesRepository.save(fieldValue);
+      } else if (field.type === 'number' && dto.numberFields[field.id]) {
+        let fieldValue = await this.numberFieldValuesRepository.findOne({ where: { task, taskField: field } });
+        if (fieldValue) {
+          fieldValue.value = dto.numberFields[field.id];
+        } else {
+          fieldValue = this.numberFieldValuesRepository.create({
+            task,
+            taskField: field,
+            value: dto.numberFields[field.id],
+          });
+        }
+        await this.numberFieldValuesRepository.save(fieldValue);
+      }
+    }
+
+    return savedTask;
   }
 
   async remove(user: User, taskId: number) {

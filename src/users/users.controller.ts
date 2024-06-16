@@ -1,9 +1,8 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common'; 
+import { Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common'; 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { User } from './user.entity';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; 
 
 @ApiBearerAuth() 
 @UseGuards(JwtAuthGuard)
@@ -26,8 +25,8 @@ export class UsersController {
     }
     
     @ApiOperation( { summary:"Get user by id" } ) 
-    @Get(':id')
-    getUserById(@Param('id') id: string) {
+    @Get(':id' )
+    getUserById(@Param('id', ParseIntPipe) id: number) {
         return this.usersService.getById(+id);
     }   
 
@@ -43,7 +42,7 @@ export class UsersController {
         
     @ApiOperation( { summary:"Delete user" } ) 
     @Delete(':id')
-    removeUser(@Param('id') id: string) {  
+    removeUser(@Param('id', ParseIntPipe) id: number) {  
         return this.usersService.remove(+id);
     }  
 }

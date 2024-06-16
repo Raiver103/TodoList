@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsString, Length } from 'class-validator';
 
 export class CreateTaskDto {
   
@@ -12,5 +12,7 @@ export class CreateTaskDto {
   @Length(1, 300)
   @IsString()
   description: string; 
+  stringFields: any;
+  numberFields: any;
  
 }
