@@ -3,10 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TaskField } from './entities/task-field.entity';
 import { Repository } from 'typeorm';
 import { Project } from 'src/projects/project.entity';
-import { User } from 'src/users/user.entity';
-import { TaskFieldNumberValue } from './entities/task-field-number-value.entity';
-import { TaskFieldStringValue } from './entities/task-field-string-value.entity';
-import { Task } from 'src/tasks/task.entity';
+import { User } from 'src/users/user.entity'; 
+import { TaskFieldOption } from './entities/task-field-option.entity';
 
 @Injectable()
 export class TaskFieldsService {
@@ -14,76 +12,12 @@ export class TaskFieldsService {
     @InjectRepository(TaskField)
     private taskFieldsRepository: Repository<TaskField>,
     @InjectRepository(Project)
-    private projectsRepository: Repository<Project>,
-    @InjectRepository(TaskFieldNumberValue)
-    private taskNumericFieldValueRepository: Repository<TaskFieldNumberValue>,
-    @InjectRepository(TaskFieldStringValue)
-    private taskStringFieldValueRepository: Repository<TaskFieldStringValue>,
-    @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
+    private projectsRepository: Repository<Project>, 
+    @InjectRepository(TaskFieldOption)
+    private taskFieldOptionRepository: Repository<TaskFieldOption>,
   ) {}
-
-  async createTaskFieldNumber(user: User, taskId: number, fieldId: number, value: number)  {
-    const task = await this.taskRepository.findOne({ where: { id: taskId }, 
-      relations: ['column', 'column.project', 'column.project.user'] });
-       
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    const field = await this.taskFieldsRepository.findOne({ where: { id: fieldId },
-      relations: ['project', 'project.user'], });
-
-    if (!field) {
-      throw new NotFoundException('Field not found');
-    } 
-
-    if(field.type != 'number'){
-      throw new NotFoundException('field type must be number');
-    } 
-
-    if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
-      throw new UnauthorizedException('You are not authorized to add values to this task field');
-    }
-    
-    const newValue = new TaskFieldNumberValue();
-    newValue.task = task;
-    newValue.taskField = field;
-    newValue.value = value;
-    return this.taskNumericFieldValueRepository.save(newValue);
-  }
- 
-  async createTaskFieldString(user: User, taskId: number, fieldId: number, value: string) {
-    const task = await this.taskRepository.findOne({ where: { id: taskId },
-      relations: ['column', 'column.project', 'column.project.user'] });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    const field = await this.taskFieldsRepository.findOne({ where: { id: fieldId },
-      relations: ['project', 'project.user'] });
-
-    if (!field) {
-      throw new NotFoundException('Field not found');
-    } 
-    
-    if(field.type != 'string'){
-      throw new NotFoundException('field type must be string');
-    }
-
-    if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
-      throw new UnauthorizedException('You are not authorized to add values to this task field');
-    }
   
-    const newValue = new TaskFieldStringValue();
-    newValue.task = task;
-    newValue.taskField = field;
-    newValue.value = value;
-    return this.taskStringFieldValueRepository.save(newValue);
-  }
-
-  async create(user: User, projectId: number, name: string, type: 'string' | 'number') {
+  async create(user: User, projectId: number, name: string, type: 'string' | 'number' | 'option', options?: string[]) {
     const project = await this.projectsRepository.findOne({ where: { id: projectId }, 
       relations: ['user'] });
 
@@ -96,25 +30,50 @@ export class TaskFieldsService {
     }
 
     const taskField = this.taskFieldsRepository.create({ project, name, type });
-    return this.taskFieldsRepository.save(taskField);
+    const savedField = await this.taskFieldsRepository.save(taskField);
+
+    if (type === 'option' && options) {
+      const optionEntities = options.map(option => {
+        const optionEntity = new TaskFieldOption();
+        optionEntity.taskField = savedField;
+        optionEntity.value = option;
+        return optionEntity;
+      });
+      await this.taskFieldOptionRepository.save(optionEntities);
+    }
+
+    return savedField;
   }
 
-  async update(user: User, fieldId: number, name: string, type: 'string' | 'number') {
+  async update(user: User, fieldId: number, name: string, type: 'string' | 'number' | 'option', options?: string[]) {
     const taskField = await this.taskFieldsRepository.findOne({ where: { id: fieldId }, 
-      relations: ['project', 'project.user'] });
+      relations: ['project', 'project.user', 'options'] });
 
     if (!taskField) {
       throw new NotFoundException('Task field not found');
     } 
     
     if (taskField.project.user.id !== user.id) {
-      throw new UnauthorizedException('You are not authorized to add values to this task field');
+      throw new UnauthorizedException('You are not authorized to update this task field');
     }
 
     taskField.name = name; 
     taskField.type = type;
 
-    return this.taskFieldsRepository.save(taskField);
+    const updatedField = await this.taskFieldsRepository.save(taskField);
+
+    if (type === 'option' && options) {
+      await this.taskFieldOptionRepository.remove(taskField.options);
+      const newOptions = options.map(option => {
+        const optionEntity = new TaskFieldOption();
+        optionEntity.taskField = updatedField;
+        optionEntity.value = option;
+        return optionEntity;
+      });
+      await this.taskFieldOptionRepository.save(newOptions);
+    }
+
+    return updatedField;
   }
 
   async delete(user: User, fieldId: number) {

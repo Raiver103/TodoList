@@ -5,10 +5,10 @@ import { Repository } from 'typeorm';
 import { ProjectsService } from 'src/projects/projects.service';
 import { ColumnEntity } from 'src/columns/column.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { User } from 'src/users/user.entity';
-import { TaskFieldStringValue } from 'src/task-fields/entities/task-field-string-value.entity';
-import { TaskFieldNumberValue } from 'src/task-fields/entities/task-field-number-value.entity';
-import { TaskField } from 'src/task-fields/entities/task-field.entity';
+import { User } from 'src/users/user.entity'; 
+import { TaskField } from 'src/task-fields/entities/task-field.entity'; 
+import { TaskFieldStringValue } from 'src/task-field-values/entities/task-field-string-value.entity';
+import { TaskFieldNumberValue } from 'src/task-field-values/entities/task-field-number-value.entity';
 
 @Injectable()
 export class TasksService {
@@ -283,4 +283,4 @@ export class TasksService {
       .getRawOne();
     return (result.maxOrder || 0) + 1;
   }
-}
+} 

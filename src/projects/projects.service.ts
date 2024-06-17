@@ -18,19 +18,22 @@ export class ProjectsService {
     return this.projectsRepository.save(project);
   }
 
-  async getAll(user: User) {   
-      const projects = this.projectsRepository
-      .createQueryBuilder('project')  
-      .where('project.userId = :userId', { userId: user.id })  
-      .leftJoinAndSelect('project.columns', 'column') 
-      .leftJoinAndSelect('column.tasks', 'task')   
+  async getAll(user: User) {
+    const projects = await this.projectsRepository
+      .createQueryBuilder('project')
+      .where('project.userId = :userId', { userId: user.id })
+      .leftJoinAndSelect('project.columns', 'column')
+      .leftJoinAndSelect('column.tasks', 'task')
       .leftJoinAndSelect('task.stringFieldValues', 'stringFieldValue')
       .leftJoinAndSelect('stringFieldValue.taskField', 'stringTaskField')
       .leftJoinAndSelect('task.numberFieldValues', 'numberFieldValue')
       .leftJoinAndSelect('numberFieldValue.taskField', 'numberTaskField')
-      .getMany();  
-
-      return projects;
+      .leftJoinAndSelect('task.optionFieldValues', 'optionFieldValue')
+      .leftJoinAndSelect('optionFieldValue.option', 'option')
+      .leftJoinAndSelect('option.taskField', 'optionTaskField')
+      .getMany();
+    
+    return projects;
   }
 
   async getOne(user: User, id: number) {
@@ -44,13 +47,16 @@ export class ProjectsService {
       .leftJoinAndSelect('stringFieldValue.taskField', 'stringTaskField')
       .leftJoinAndSelect('task.numberFieldValues', 'numberFieldValue')
       .leftJoinAndSelect('numberFieldValue.taskField', 'numberTaskField')
+      .leftJoinAndSelect('task.optionFieldValues', 'optionFieldValue')
+      .leftJoinAndSelect('optionFieldValue.option', 'option')
+      .leftJoinAndSelect('option.taskField', 'optionTaskField')
       .getOne();
-       
+  
     if (!project) {
       throw new NotFoundException(`Project #${id} not found`);
     }
-    
-    return project; 
+  
+    return project;
   }
 
   async update(user: User, updateData: CreateProjectDto, id: number) {

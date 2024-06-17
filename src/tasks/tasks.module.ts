@@ -8,9 +8,9 @@ import { ProjectsModule } from 'src/projects/projects.module';
 import { ColumnsModule } from 'src/columns/columns.module';
 import { ColumnEntity } from 'src/columns/column.entity';
 import { Project } from 'src/projects/project.entity';
-import { TaskField } from 'src/task-fields/entities/task-field.entity';
-import { TaskFieldNumberValue } from 'src/task-fields/entities/task-field-number-value.entity';
-import { TaskFieldStringValue } from 'src/task-fields/entities/task-field-string-value.entity';
+import { TaskField } from 'src/task-fields/entities/task-field.entity';  
+import { TaskFieldNumberValue } from 'src/task-field-values/entities/task-field-number-value.entity';
+import { TaskFieldStringValue } from 'src/task-field-values/entities/task-field-string-value.entity';
 
 @Module({
   providers: [TasksService],

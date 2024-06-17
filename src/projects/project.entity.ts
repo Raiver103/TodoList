@@ -24,13 +24,13 @@ export class Project {
   createdAt: Date;
 
   @ApiProperty( { description: "user" } )
-  @ManyToOne(() => User, (user) => user.projects)
+  @ManyToOne(() => User, (user) => user.projects, { onDelete: 'CASCADE' })
   user: User;
 
   @ApiProperty( { description: "columns" } )
   @OneToMany(() => ColumnEntity, (column) => column.project, { cascade: true, onDelete: 'CASCADE' })
   columns: ColumnEntity[];
 
-  @OneToMany(() => TaskField, field => field.project)
+  @OneToMany(() => TaskField, field => field.project, { cascade: true, onDelete: 'CASCADE' })
   fields: TaskField[];
 }

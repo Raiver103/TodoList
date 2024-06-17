@@ -10,7 +10,7 @@ import { AuthModule } from 'src/auth/auth.module';
   controllers: [ProjectsController],
   imports: [
     TypeOrmModule.forFeature([Project]), 
-      forwardRef(() => AuthModule), 
+      forwardRef(() => AuthModule),
   ],
   exports:[
     ProjectsService

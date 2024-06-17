@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString, Length } from 'class-validator'; 
+import { IsArray, IsEnum, IsOptional, IsString, Length } from 'class-validator'; 
 
 enum FieldType {
   STRING = 'string',
   NUMBER = 'number',
+  OPTION = 'option',
 }
 
 export class CreateTaskFieldDto {
@@ -16,4 +17,9 @@ export class CreateTaskFieldDto {
   @ApiProperty( {example: "string", description: "type"} ) 
   @IsEnum(FieldType, { message: 'Type must be either "string" or "number"' })
   type: FieldType;
+
+  @ApiProperty( {example: ["opt1", "opt2", "opt3"], description: "options"} ) 
+  @IsOptional()
+  @IsArray()
+  options?: string[];
 }

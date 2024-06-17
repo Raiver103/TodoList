@@ -20,6 +20,6 @@ export class User{
   password: string; 
 
   @ApiProperty( { description: "projects"} )
-  @OneToMany(() => Project, project => project.user)
+  @OneToMany(() => Project, project => project.user, { cascade: true, onDelete: 'CASCADE' })
   projects: Project[]; 
 }
