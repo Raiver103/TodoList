@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './task.entity';
-import { Repository } from 'typeorm';
-import { ProjectsService } from 'src/projects/projects.service';
+import { Repository } from 'typeorm'; 
 import { ColumnEntity } from 'src/columns/column.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { User } from 'src/users/user.entity'; 
@@ -12,8 +11,7 @@ import { TaskFieldNumberValue } from 'src/task-field-values/entities/task-field-
 
 @Injectable()
 export class TasksService {
-
-  
+ 
   constructor(
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,

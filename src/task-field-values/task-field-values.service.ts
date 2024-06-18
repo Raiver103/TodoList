@@ -14,7 +14,7 @@ export class TaskFieldValuesService {
 
   constructor(
     @InjectRepository(TaskFieldNumberValue)
-    private taskNumericFieldValueRepository: Repository<TaskFieldNumberValue>,
+    private taskNumberFieldValueRepository: Repository<TaskFieldNumberValue>,
     @InjectRepository(TaskFieldStringValue)
     private taskStringFieldValueRepository: Repository<TaskFieldStringValue>,
     @InjectRepository(Task)
@@ -27,6 +27,7 @@ export class TaskFieldValuesService {
     private taskFieldOptionRepository: Repository<TaskFieldOption>,
   ) {}
  
+  
   async createTaskFieldNumber(user: User, taskId: number, fieldId: number, value: number)  {
     const task = await this.taskRepository.findOne({ where: { id: taskId }, 
       relations: ['column', 'column.project', 'column.project.user'] });
@@ -48,13 +49,9 @@ export class TaskFieldValuesService {
 
     if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
-    }
+    } 
     
-    const newValue = new TaskFieldNumberValue();
-    newValue.task = task;
-    newValue.taskField = field;
-    newValue.value = value;
-    return this.taskNumericFieldValueRepository.save(newValue);
+    return this.getOrCreateNumberValue(taskId, fieldId, value);
   }
  
   async createTaskFieldString(user: User, taskId: number, fieldId: number, value: string) {
@@ -78,13 +75,8 @@ export class TaskFieldValuesService {
 
     if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
-    }
-  
-    const newValue = new TaskFieldStringValue();
-    newValue.task = task;
-    newValue.taskField = field;
-    newValue.value = value;
-    return this.taskStringFieldValueRepository.save(newValue);
+    } 
+    return this.getOrCreateStringValue(taskId, fieldId, value);
   }
 
   async createTaskFieldOption(user: User, taskId: number, fieldId: number, optionId: number) {
@@ -120,15 +112,29 @@ export class TaskFieldValuesService {
 
     if (!option) {
       throw new NotFoundException('Option not found');
-    }
-
-    const newValue = new TaskFieldOptionValue();
-    newValue.task = task;
-    newValue.option = option;
-    return this.taskOptionFieldValueRepository.save(newValue);
+    } 
+    const existingValue = await this.taskOptionFieldValueRepository.findOne({
+      where: {
+        task: { id: taskId },
+        option: { taskField: { id: fieldId } }
+      },
+      relations: ['task', 'option', 'option.taskField']
+    });
+  
+    if (existingValue) {
+      existingValue.option = option;
+      return this.taskOptionFieldValueRepository.save(existingValue);
+    } else {
+      const newValue = this.taskOptionFieldValueRepository.create({
+        task,
+        option
+      });
+      return this.taskOptionFieldValueRepository.save(newValue);
+    } 
   }
 
   async getAllOptions(user: User) {
+ 
     const options = await this.taskFieldOptionRepository
       .createQueryBuilder('option')
       .leftJoin('option.taskField', 'taskField')
@@ -146,5 +152,39 @@ export class TaskFieldValuesService {
       .getMany();
     
     return options;
+  }
+
+  private async getOrCreateNumberValue(taskId: number, fieldId: number, value: number): Promise<TaskFieldNumberValue> {
+    let existingValue = await this.taskNumberFieldValueRepository.findOne({
+      where: { task: { id: taskId }, taskField: { id: fieldId } }
+    });
+
+    if (existingValue) {
+      existingValue.value = value;
+      return this.taskNumberFieldValueRepository.save(existingValue);
+    } else {
+      const newNumberValue = new TaskFieldNumberValue();
+      newNumberValue.task = { id: taskId } as Task;
+      newNumberValue.taskField = { id: fieldId } as TaskField;
+      newNumberValue.value = value;
+      return this.taskNumberFieldValueRepository.save(newNumberValue);
+    }
+  }
+ 
+  private async getOrCreateStringValue(taskId: number, fieldId: number, value: string): Promise<TaskFieldStringValue> {
+    let existingValue = await this.taskStringFieldValueRepository.findOne({
+      where: { task: { id: taskId }, taskField: { id: fieldId } }
+    });
+
+    if (existingValue) {
+      existingValue.value = value;
+      return this.taskStringFieldValueRepository.save(existingValue);
+    } else {
+      const newStringValue = new TaskFieldStringValue();
+      newStringValue.task = { id: taskId } as Task;
+      newStringValue.taskField = { id: fieldId } as TaskField;
+      newStringValue.value = value;
+      return this.taskStringFieldValueRepository.save(newStringValue);
+    }
   }
 }

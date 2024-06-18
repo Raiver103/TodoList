@@ -59,7 +59,7 @@ export default class TaskFieldValuesController {
   }
 
   @Get()
-  v(
+  getAllOptions(
     @Req() req, 
   ) {
     return this.taskFieldValuesService.getAllOptions(req.user)
