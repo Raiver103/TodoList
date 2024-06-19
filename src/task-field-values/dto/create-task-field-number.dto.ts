@@ -3,7 +3,7 @@ import { IsNumber, IsString, Length } from 'class-validator';
 
 export class CreateTaskFieldNumberDto {
   
-  @ApiProperty( {example: 3, description: "value"} )  
+  @ApiProperty( {example: 1, description: "Value"} )  
   @IsNumber()
   value: number; 
 }

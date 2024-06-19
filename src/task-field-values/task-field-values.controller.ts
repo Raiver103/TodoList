@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { TaskFieldValuesService } from './task-field-values.service'; 
 import { CreateTaskFieldNumberDto } from './dto/create-task-field-number.dto';
@@ -13,6 +13,8 @@ import { CreateTaskFieldOptionDto } from './dto/create-task-field-option.dto';
 export default class TaskFieldValuesController {
   
   constructor(private readonly taskFieldValuesService: TaskFieldValuesService) {}
+ 
+  @ApiOperation( { summary:"Add value for number task field" } ) 
   @Post('number')
   createTaskFieldNumberValue(
     @Req() req,
@@ -28,6 +30,7 @@ export default class TaskFieldValuesController {
     );
   }
 
+  @ApiOperation( { summary:"Add value for string task field" } ) 
   @Post('string')
   createTaskFieldStringValue(
     @Req() req,
@@ -43,6 +46,7 @@ export default class TaskFieldValuesController {
     );
   }
 
+  @ApiOperation( { summary:"Add value for option task field" } ) 
   @Post('option')
   createTaskFieldOptionValue(
     @Req() req,
@@ -58,10 +62,9 @@ export default class TaskFieldValuesController {
     );
   }
 
+  @ApiOperation( { summary:"Get all options of user" } ) 
   @Get()
-  getAllOptions(
-    @Req() req, 
-  ) {
+  getAllOptions(@Req() req) {
     return this.taskFieldValuesService.getAllOptions(req.user)
   }
 }

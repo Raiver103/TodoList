@@ -10,7 +10,7 @@ export class User{
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ApiProperty( {example: "email@mail.com", description: "email"} )
+  @ApiProperty( {example: "youremail@mail.com", description: "email"} )
   @Column()
   email: string;
 

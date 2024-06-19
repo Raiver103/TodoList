@@ -51,7 +51,7 @@ export class ColumnsController {
     @Param('projectId') projectId: number, 
     @Param('columnId') columnId: number, 
     @Body() newOrder: MoveColumnDto ) {
-     
+      
     return this.columnsService.move(req.user, projectId, columnId, +newOrder.order);
   }
 } 

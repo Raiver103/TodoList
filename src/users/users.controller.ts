@@ -3,9 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; 
-
-@ApiBearerAuth() 
-@UseGuards(JwtAuthGuard)
+ 
 @ApiTags("Users")
 @Controller('users')    
 export class UsersController {
@@ -19,7 +17,7 @@ export class UsersController {
     }
  
     @ApiOperation( { summary:"Get users" } ) 
-    @Get()  
+    @Get()
     getAllUsers(){
         return this.usersService.getAll();
     }
@@ -33,7 +31,7 @@ export class UsersController {
     @ApiOperation( { summary:"Get user by email" } ) 
     @Get('email/:email')
     getUserByEmail(@Param('email') email: string) {
-        const user = this.usersService.getByEmail(email);
+        const user = this.usersService.getByEmail(email); 
         if (!user) {
             throw new NotFoundException('User not found');
         }

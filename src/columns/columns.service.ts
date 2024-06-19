@@ -44,9 +44,11 @@ export class ColumnsService {
       },
       relations: ['project', 'project.user'],
     }); 
+
     if (!column) {
       throw new NotFoundException('Column not found');
     }
+
     return column;
   }
  
@@ -56,6 +58,10 @@ export class ColumnsService {
     await this.columnsRepository.remove(column);
 
     // update all column's order of the project
+    await this.updateOrdersOfProjectAfterRemove(column);
+  }
+
+  private async updateOrdersOfProjectAfterRemove(column: ColumnEntity) {
     const project = column.project;
     const remainingColumns = await this.columnsRepository.find({
       where: { project: project },
@@ -74,18 +80,21 @@ export class ColumnsService {
     if (!column) {
       throw new NotFoundException('Column not found');
     }
-
-    // Get all the columns in the project, except for the moved one
-    const otherColumns = await this.columnsRepository.find({
-      where: { project: column.project, id: Not(columnId) },
-      order: { order: 'ASC' },
-    }); 
+ 
+    const otherColumns = await this.columnsExceptMovedColumn(column, columnId); 
 
     if(newOrder < 1 || newOrder > otherColumns.length + 1){
       throw new ForbiddenException(`bad range`); 
     }
 
-    // If the new sequence number is smaller than the current one, increase the sequence numbers of the columns that should move to the right
+    await this.updateColumnsOrder(newOrder, column, otherColumns);
+
+    column.order = newOrder;
+
+    await this.columnsRepository.save(column);
+  }
+
+  private async updateColumnsOrder(newOrder: number, column: ColumnEntity, otherColumns: ColumnEntity[]) {
     if (newOrder < column.order) {
       for (const otherColumn of otherColumns) {
         if (otherColumn.order >= newOrder && otherColumn.order < column.order) {
@@ -94,7 +103,6 @@ export class ColumnsService {
         }
       }
     } else {
-      // If the new sequence number is larger than the current one, reduce the sequence numbers of the columns that should move to the left
       for (const otherColumn of otherColumns) {
         if (otherColumn.order > column.order && otherColumn.order <= newOrder) {
           otherColumn.order--;
@@ -102,9 +110,12 @@ export class ColumnsService {
         }
       }
     }
+  }
 
-    // Setting a new sequence number for the column to be moved
-    column.order = newOrder;
-    await this.columnsRepository.save(column);
+  private async columnsExceptMovedColumn(column: ColumnEntity, columnId: number) {
+    return await this.columnsRepository.find({
+      where: { project: column.project, id: Not(columnId) },
+      order: { order: 'ASC' },
+    });
   }
 }

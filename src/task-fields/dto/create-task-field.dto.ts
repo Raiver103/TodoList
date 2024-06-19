@@ -14,11 +14,11 @@ export class CreateTaskFieldDto {
   @IsString()
   name: string;
   
-  @ApiProperty( {example: "string", description: "type"} ) 
-  @IsEnum(FieldType, { message: 'Type must be either "string" or "number"' })
+  @ApiProperty( {example: "option", description: "type"} ) 
+  @IsEnum(FieldType, { message: 'Type must be either "string", "number" or "option"' })
   type: FieldType;
 
-  @ApiProperty( {example: ["opt1", "opt2", "opt3"], description: "options"} ) 
+  @ApiProperty( {example: ["option 1", "option 2", "option 3"], description: "options"} ) 
   @IsOptional()
   @IsArray()
   options?: string[];
