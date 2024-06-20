@@ -21,9 +21,7 @@ export class TaskFieldsService {
     const project = await this.projectsRepository.findOne({ where: { id: projectId }, 
       relations: ['user'] });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }  
+    this.isProjectNull(project);  
 
     if (project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add fields to this project');
@@ -32,15 +30,7 @@ export class TaskFieldsService {
     const taskField = this.taskFieldsRepository.create({ project, name, type });
     const savedField = await this.taskFieldsRepository.save(taskField);
 
-    if (type === 'option' && options) {
-      const optionEntities = options.map(option => {
-        const optionEntity = new TaskFieldOption();
-        optionEntity.taskField = savedField;
-        optionEntity.value = option;
-        return optionEntity;
-      });
-      await this.taskFieldOptionRepository.save(optionEntities);
-    }
+    await this.saveTaskFieldOptions(type, options, savedField);
 
     return savedField;
   }
@@ -49,9 +39,7 @@ export class TaskFieldsService {
     const taskField = await this.taskFieldsRepository.findOne({ where: { id: fieldId }, 
       relations: ['project', 'project.user', 'options'] });
 
-    if (!taskField) {
-      throw new NotFoundException('Task field not found');
-    } 
+    this.isTaskFieldNull(taskField); 
     
     if (taskField.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to update this task field');
@@ -61,17 +49,8 @@ export class TaskFieldsService {
     taskField.type = type;
 
     const updatedField = await this.taskFieldsRepository.save(taskField);
-
-    if (type === 'option' && options) {
-      await this.taskFieldOptionRepository.remove(taskField.options);
-      const newOptions = options.map(option => {
-        const optionEntity = new TaskFieldOption();
-        optionEntity.taskField = updatedField;
-        optionEntity.value = option;
-        return optionEntity;
-      });
-      await this.taskFieldOptionRepository.save(newOptions);
-    }
+ 
+    await this.saveTaskFieldOptions(type, options, updatedField);
 
     return updatedField;
   }
@@ -79,10 +58,8 @@ export class TaskFieldsService {
   async delete(user: User, fieldId: number) {
     const taskField = await this.taskFieldsRepository.findOne({ where: { id: fieldId }, 
       relations: ['project', 'project.user'] });
-
-    if (!taskField) {
-      throw new NotFoundException('Task field not found');
-    } 
+ 
+    this.isTaskFieldNull(taskField); 
 
     if (taskField.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
@@ -95,9 +72,8 @@ export class TaskFieldsService {
     const project = await this.projectsRepository.findOne({ where: { id: projectId }, 
       relations: ['user'] });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    } 
+
+    this.isProjectNull(project);  
 
     if (project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
@@ -105,4 +81,29 @@ export class TaskFieldsService {
     
     return this.taskFieldsRepository.find({ where: { project } });
   }
+
+  private async saveTaskFieldOptions(type: string, options: string[], savedField: TaskField) {
+    if (type === 'option' && options) {
+      const optionEntities = options.map(option => {
+        const optionEntity = new TaskFieldOption();
+        optionEntity.taskField = savedField;
+        optionEntity.value = option;
+        return optionEntity;
+      });
+      await this.taskFieldOptionRepository.save(optionEntities);
+    }
+  }
+
+  private isProjectNull(project: Project) {
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+  }
+
+  private isTaskFieldNull(taskField: TaskField) {
+    if (!taskField) {
+      throw new NotFoundException('Task field not found');
+    }
+  }
+
 }
