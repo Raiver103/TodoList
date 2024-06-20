@@ -32,20 +32,14 @@ export class TaskFieldValuesService {
     const task = await this.taskRepository.findOne({ where: { id: taskId }, 
       relations: ['column', 'column.project', 'column.project.user'] });
        
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
+    this.isTaskNull(task);
 
     const field = await this.taskFieldsRepository.findOne({ where: { id: fieldId },
       relations: ['project', 'project.user'], });
 
-    if (!field) {
-      throw new NotFoundException('Field not found');
-    } 
+    this.isFieldNull(field); 
 
-    if(field.type != 'number'){
-      throw new NotFoundException('field type must be number');
-    } 
+    this.isFieldNumber(field); 
 
     if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
@@ -53,25 +47,19 @@ export class TaskFieldValuesService {
     
     return this.getOrCreateNumberValue(taskId, fieldId, value);
   }
- 
+
   async createTaskFieldString(user: User, taskId: number, fieldId: number, value: string) {
     const task = await this.taskRepository.findOne({ where: { id: taskId },
       relations: ['column', 'column.project', 'column.project.user'] });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
+ 
+    this.isTaskNull(task);
 
     const field = await this.taskFieldsRepository.findOne({ where: { id: fieldId },
       relations: ['project', 'project.user'] });
-
-    if (!field) {
-      throw new NotFoundException('Field not found');
-    } 
+ 
+    this.isFieldNull(field);
     
-    if(field.type != 'string'){
-      throw new NotFoundException('field type must be string');
-    }
+    this.isFieldString(field);
 
     if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
@@ -83,26 +71,20 @@ export class TaskFieldValuesService {
     const task = await this.taskRepository.findOne({ where: { id: taskId },
       relations: ['column', 'column.project', 'column.project.user'] });
  
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
+    this.isTaskNull(task);
 
     const field = await this.taskFieldsRepository.findOne({ where: { id: fieldId },
       relations: ['project', 'project.user'] });
-
+ 
     const projectId = field.project.id;
  
-    if (!field) {
-      throw new NotFoundException('Field not found');
-    } 
+    this.isFieldNull(field);
 
     if(projectId != task.column.project.id){ 
       throw new NotFoundException('this task in another project');
     }
 
-    if (field.type != 'option') {
-      throw new NotFoundException('field type must be option');
-    } 
+    this.isFieldOption(field); 
 
     if (task.column.project.user.id !== user.id || field.project.user.id !== user.id) {
       throw new UnauthorizedException('You are not authorized to add values to this task field');
@@ -110,16 +92,9 @@ export class TaskFieldValuesService {
     
     const option = await this.taskFieldOptionRepository.findOne({ where: { id: optionId, taskField: field } });
 
-    if (!option) {
-      throw new NotFoundException('Option not found');
-    } 
-    const existingValue = await this.taskOptionFieldValueRepository.findOne({
-      where: {
-        task: { id: taskId },
-        option: { taskField: { id: fieldId } }
-      },
-      relations: ['task', 'option', 'option.taskField']
-    });
+    this.isOptionNull(option); 
+
+    const existingValue = await this.getExistingValue(taskId, fieldId);
   
     if (existingValue) {
       existingValue.option = option;
@@ -130,7 +105,7 @@ export class TaskFieldValuesService {
         option
       });
       return this.taskOptionFieldValueRepository.save(newValue);
-    } 
+    }  
   }
 
   async getAllOptions(user: User) {
@@ -187,4 +162,50 @@ export class TaskFieldValuesService {
       return this.taskStringFieldValueRepository.save(newStringValue);
     }
   }
+ 
+  private isFieldNull(field: TaskField) {
+    if (!field) {
+      throw new NotFoundException('Field not found');
+    }
+  }
+
+  private isTaskNull(task: Task) {
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+  }
+
+  private isOptionNull(option: TaskFieldOption) {
+    if (!option) {
+      throw new NotFoundException('Option not found');
+    }
+  }
+
+  private isFieldNumber(field: TaskField) {
+    if (field.type != 'number') {
+      throw new NotFoundException('field type must be number');
+    }
+  }
+
+  private isFieldString(field: TaskField) {
+    if (field.type != 'string') {
+      throw new NotFoundException('field type must be string');
+    }
+  }
+
+  private isFieldOption(field: TaskField) {
+    if (field.type != 'option') {
+      throw new NotFoundException('field type must be option');
+    }
+  }
+
+  private async getExistingValue(taskId: number, fieldId: number) {
+    return await this.taskOptionFieldValueRepository.findOne({
+      where: {
+        task: { id: taskId },
+        option: { taskField: { id: fieldId } }
+      },
+      relations: ['task', 'option', 'option.taskField']
+    });
+  } 
 }
