@@ -26,7 +26,7 @@ export class TasksService {
   ) {}
 
   async create(user: User, createTaskDto: CreateTaskDto, columnId: number) {  
-    const column = await this.getColumn(columnId, user);   
+    const column = await this.getUsersColumn(columnId, user);   
 
     if (!column || column.project.user.id !== user.id) {
       throw new NotFoundException('Column not found');
@@ -40,14 +40,191 @@ export class TasksService {
     });
     
     const savedTask = await this.tasksRepository.save(task);
+
     const fields = await this.taskFieldsRepository.find({ where: { project: column.project } });
 
-    await this.updateTaskOrders(fields, createTaskDto, savedTask);
+    await this.manageTaskFieldValues(fields, createTaskDto, savedTask);
     
     return savedTask;
-}
+  }
 
-  private async updateTaskOrders(fields: TaskField[], createTaskDto: CreateTaskDto, savedTask: Task) {
+  async get(user: User, taskId: number) {
+    const task = await this.getUserTask(taskId, user);  
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return task;
+  } 
+
+  async update(user: User, dto: CreateTaskDto, taskId: number){ 
+    const task = await this.getUserTask(taskId, user);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    Object.assign(task, dto);const fields = await this.taskFieldsRepository.find({ where: { project: task.column.project } });
+
+    const savedTask = await this.tasksRepository.save(task);
+
+    await this.updateTaskFields(fields, dto, task);
+
+    return savedTask;
+  }  
+
+  async remove(user: User, taskId: number) {
+    const task = await this.getUserTask(taskId, user);
+    
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+ 
+    const tasksInColumn = await this.tasksRepository.find({
+      where: { column: task.column },
+      order: { order: 'ASC' },
+    });
+  
+    this.removeTaskFromColumn(tasksInColumn, task);
+ 
+    await this.updateOrderOfRemainingTasksInColumn(tasksInColumn);
+
+    await this.tasksRepository.remove(task);
+  }
+
+  async move(user: User, taskId: number, newColumnId: number, newOrder: number) {
+
+    const task = await this.getUserTask(taskId, user);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    } 
+
+    await this.moveTask(task, newColumnId, newOrder, user);
+  }  
+
+  private async moveTask(task: Task, newColumnId: number, newOrder: number, user: User) {
+    const currentColumn = task.column;
+
+    if (currentColumn.id === newColumnId) {
+      const tasksInCurrentColumn = await this.tasksRepository.find({
+        where: { column: currentColumn },
+        order: { order: 'ASC' },
+      });
+
+      if (newOrder < 1 || newOrder > tasksInCurrentColumn.length) {
+        throw new Error('New order is out of bounds');
+      }
+
+      this.removeTaskFromColumn(tasksInCurrentColumn, task);
+
+      tasksInCurrentColumn.splice(newOrder - 1, 0, task);
+
+      await this.updateOrderOfTasksInColumn(tasksInCurrentColumn);
+    } else {
+      // If task is moved to a different column
+      const newColumn = await this.columnsRepository.findOne({ where: { id: newColumnId }, relations: ['project', 'project.user'] });
+      if (!newColumn) {
+        throw new NotFoundException('New column not found');
+      }
+
+      if (newColumn.project.user.id !== user.id) {
+        throw new UnauthorizedException('You are not authorized to move this task');
+      }
+
+      const tasksInCurrentColumn = await this.tasksRepository.find({
+        where: { column: currentColumn },
+        order: { order: 'ASC' },
+      });
+
+      const tasksInNewColumn = await this.tasksRepository.find({
+        where: { column: newColumn },
+        order: { order: 'ASC' },
+      });
+
+      // Ensure newOrder is within bounds
+      if (newOrder < 1 || newOrder > tasksInNewColumn.length + 1) {
+        throw new Error('New order is out of bounds');
+      }
+
+      // Remove task from the current column
+      this.removeTaskFromCurrentColumn(tasksInCurrentColumn, task);
+
+      // Update order of remaining tasks in the current column
+      await this.updateOrderOfRemainingTasksInCurrentColumn(tasksInCurrentColumn);
+
+      // Insert task at new position in the new column
+      tasksInNewColumn.splice(newOrder - 1, 0, task);
+
+      // Update order of tasks in the new column
+      await this.updateOrderOfTasksInNewColumn(tasksInNewColumn);
+
+      // Update task's column reference
+      task.column = newColumn;
+      await this.tasksRepository.save(task);
+    }
+  }
+
+  private async updateOrderOfTasksInNewColumn(tasksInNewColumn: Task[]) {
+    for (let i = 0; i < tasksInNewColumn.length; i++) {
+      tasksInNewColumn[i].order = i + 1;
+      await this.tasksRepository.save(tasksInNewColumn[i]);
+    }
+  }
+
+  private async updateOrderOfRemainingTasksInCurrentColumn(tasksInCurrentColumn: Task[]) {
+    for (let i = 0; i < tasksInCurrentColumn.length; i++) {
+      tasksInCurrentColumn[i].order = i + 1;
+      await this.tasksRepository.save(tasksInCurrentColumn[i]);
+    }
+  }
+
+  private removeTaskFromCurrentColumn(tasksInCurrentColumn: Task[], task: Task) {
+    const taskIndex = tasksInCurrentColumn.findIndex(t => t.id === task.id);
+    if (taskIndex > -1) {
+      tasksInCurrentColumn.splice(taskIndex, 1);
+    }
+  }
+
+  private async updateOrderOfTasksInColumn(tasksInCurrentColumn: Task[]) {
+    for (let i = 0; i < tasksInCurrentColumn.length; i++) {
+      tasksInCurrentColumn[i].order = i + 1;
+      await this.tasksRepository.save(tasksInCurrentColumn[i]);
+    }
+  }
+
+  private async getUserTask(taskId: number, user: User) {
+    return await this.tasksRepository.findOne({
+      where: {
+        id: taskId,
+        column: {
+          project: {
+            user: {
+              id: user.id,
+            }
+          },
+        },
+      },
+      relations: ['column', 'column.project', 'column.project.user', 'stringFieldValues', 'numberFieldValues']
+    });
+  }
+
+  private async getUsersColumn(columnId: number, user: User) {
+    return await this.columnsRepository.findOne({
+      where: {
+        id: columnId,
+        project: {
+          user: {
+            id: user.id,
+          },
+        },
+      },
+      relations: ['project', 'project.user']
+    });
+  }
+
+  private async manageTaskFieldValues(fields: TaskField[], createTaskDto: CreateTaskDto, savedTask: Task) {
     for (const field of fields) {
       if (createTaskDto.stringFields && createTaskDto.stringFields[field.id]) {
         await this.stringFieldValuesRepository.save({
@@ -65,66 +242,7 @@ export class TasksService {
     }
   }
 
-  private async getColumn(columnId: number, user: User) {
-    return await this.columnsRepository.findOne({
-      where: {
-        id: columnId,
-        project: {
-          user: {
-            id: user.id,
-          },
-        },
-      },
-      relations: ['project', 'project.user']
-    });
-  }
-
-  async get(user: User, taskId: number) {
-    const task = await this.getTask(taskId, user);  
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    return task;
-  }
-
-  private async getTask(taskId: number, user: User) {
-    return await this.tasksRepository.findOne({
-      where: {
-        id: taskId,
-        column: {
-          project: {
-            user: {
-              id: user.id,
-            }
-          },
-        },
-      },
-      relations: ['column', 'column.project', 'column.project.user', 'stringFieldValues', 'numberFieldValues']
-    });
-  }
-
-  async update(user: User, dto: CreateTaskDto, taskId: number){  
-    
-    const task = await this.getTask(taskId, user); 
- 
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    Object.assign(task, dto);
-    
-    const fields = await this.taskFieldsRepository.find({ where: { project: task.column.project } });
-  
-    const savedTask = await this.tasksRepository.save(task);
-
-    await this.processFieldValues(fields, dto, task);
-
-    return savedTask;
-  }
-
-  private async processFieldValues(fields: TaskField[], dto: CreateTaskDto, task: Task) {
+  private async updateTaskFields(fields: TaskField[], dto: CreateTaskDto, task: Task) {
     for (const field of fields) {
       if (field.type === 'string' && dto.stringFields && dto.stringFields[field.id]) {
         let fieldValue = await this.stringFieldValuesRepository.findOne({ where: { task, taskField: field } });
@@ -154,147 +272,21 @@ export class TasksService {
     }
   }
 
-  async remove(user: User, taskId: number) {
-    
-    const task = await this.getTask(taskId, user); 
-    
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
- 
-    const tasksInColumn = await this.getTaskInColumn(task);
-
-    // Remove task from the column
-    this.removeTask(tasksInColumn, task);
-
-    // Update order of remaining tasks in the column
-    await this.updateTaskOrdersInColumn(tasksInColumn);
-
-    await this.tasksRepository.remove(task);
-  }
-
-  private async updateTaskOrdersInColumn(tasksInColumn: Task[]) {
+  private async updateOrderOfRemainingTasksInColumn(tasksInColumn: Task[]) {
     for (let i = 0; i < tasksInColumn.length; i++) {
       tasksInColumn[i].order = i + 1;
       await this.tasksRepository.save(tasksInColumn[i]);
-    }
+    } 
   }
 
-  private removeTask(tasksInColumn: Task[], task: Task) {
+  private removeTaskFromColumn(tasksInColumn: Task[], task: Task) {
     const taskIndex = tasksInColumn.findIndex(t => t.id === task.id);
     if (taskIndex > -1) {
       tasksInColumn.splice(taskIndex, 1);
-    }
+    } 
   }
 
-  private async getTaskInColumn(task: Task) {
-    return await this.tasksRepository.find({
-      where: { column: task.column },
-      order: { order: 'ASC' },
-    });
-  }
-
-  async move(user: User, taskId: number, newColumnId: number, newOrder: number) {
-
-    const task = await this.tasksRepository.findOne({ 
-      where: { id: taskId }, 
-      relations: ['column', 'column.project', 'column.project.user']
-    });
-
-    if (!task) {
-      throw new NotFoundException('Task not found');
-    }
-
-    if (task.column.project.user.id !== user.id) {
-      throw new UnauthorizedException('You are not authorized to move this task');
-    }
-
-    const currentColumn = task.column;
-
-    await this.moveTask(currentColumn, newColumnId, newOrder, task, user);
-  } 
-
-  private async moveTask(currentColumn: ColumnEntity, newColumnId: number, newOrder: number, task: Task, user: User) {
-    if (currentColumn.id === newColumnId) {
-      // If task is moved within the same column
-      const tasksInCurrentColumn = await this.tasksRepository.find({
-        where: { column: currentColumn },
-        order: { order: 'ASC' },
-      });
-
-      // Ensure newOrder is within bounds
-      if (newOrder < 1 || newOrder > tasksInCurrentColumn.length) {
-        throw new Error('New order is out of bounds');
-      }
-
-      // Remove task from the column
-      const taskIndex = tasksInCurrentColumn.findIndex(t => t.id === task.id);
-      if (taskIndex > -1) {
-        tasksInCurrentColumn.splice(taskIndex, 1);
-      }
-
-      // Insert task at new position
-      tasksInCurrentColumn.splice(newOrder - 1, 0, task);
-
-      // Update order of tasks in the column
-      for (let i = 0; i < tasksInCurrentColumn.length; i++) {
-        tasksInCurrentColumn[i].order = i + 1;
-        await this.tasksRepository.save(tasksInCurrentColumn[i]);
-      }
-    } else {
-      // If task is moved to a different column
-      const newColumn = await this.columnsRepository.findOne({ where: { id: newColumnId }, relations: ['project', 'project.user'] });
-      if (!newColumn) {
-        throw new NotFoundException('New column not found');
-      }
-
-      if (newColumn.project.user.id !== user.id) {
-        throw new UnauthorizedException('You are not authorized to move this task');
-      }
-
-      const tasksInCurrentColumn = await this.tasksRepository.find({
-        where: { column: currentColumn },
-        order: { order: 'ASC' },
-      });
-
-      const tasksInNewColumn = await this.tasksRepository.find({
-        where: { column: newColumn },
-        order: { order: 'ASC' },
-      });
-
-      // Ensure newOrder is within bounds
-      if (newOrder < 1 || newOrder > tasksInNewColumn.length + 1) {
-        throw new Error('New order is out of bounds');
-      }
-
-      // Remove task from the current column
-      const taskIndex = tasksInCurrentColumn.findIndex(t => t.id === task.id);
-      if (taskIndex > -1) {
-        tasksInCurrentColumn.splice(taskIndex, 1);
-      }
-
-      // Update order of remaining tasks in the current column
-      for (let i = 0; i < tasksInCurrentColumn.length; i++) {
-        tasksInCurrentColumn[i].order = i + 1;
-        await this.tasksRepository.save(tasksInCurrentColumn[i]);
-      }
-
-      // Insert task at new position in the new column
-      tasksInNewColumn.splice(newOrder - 1, 0, task);
-
-      // Update order of tasks in the new column
-      for (let i = 0; i < tasksInNewColumn.length; i++) {
-        tasksInNewColumn[i].order = i + 1;
-        await this.tasksRepository.save(tasksInNewColumn[i]);
-      }
-
-      // Update task's column reference
-      task.column = newColumn;
-      await this.tasksRepository.save(task);
-    }
-  }
-
-  async getNextTaskOrder(columnId: number) {
+  private async getNextTaskOrder(columnId: number) {
     const result = await this.tasksRepository
       .createQueryBuilder('task')
       .select('MAX(task.order)', 'maxOrder')
