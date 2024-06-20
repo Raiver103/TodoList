@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Not, Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { ColumnEntity } from './column.entity';
 import { ProjectsService } from 'src/projects/projects.service'; 
 import { CreateColumnDto } from './dto/create-column.dto';
@@ -29,6 +29,34 @@ export class ColumnsService {
     Object.assign(column, updateColumnDto);
     return this.columnsRepository.save(column);
   }
+ 
+  async remove(user: User, projectId: number, columnId: number) {
+
+    const column = await this.getOne(user, projectId, columnId);
+    await this.columnsRepository.remove(column);
+ 
+    await this.updateOrdersOfProjectAfterRemove(column);
+  }
+
+  async move(user: User, projectId: number, columnId: number, newOrder: number)  {
+    
+    const column = await this.getOne(user, projectId, columnId);
+    if (!column) {
+      throw new NotFoundException('Column not found');
+    }
+ 
+    const otherColumns = await this.columnsExceptMovedColumn(column, columnId); 
+
+    if(newOrder < 1 || newOrder > otherColumns.length + 1){
+      throw new ForbiddenException(`bad range`); 
+    }
+
+    await this.updateColumnsOrder(newOrder, column, otherColumns);
+
+    column.order = newOrder;
+
+    await this.columnsRepository.save(column);
+  }
 
   async getOne(user: User, projectId: number, columnId: number) { 
 
@@ -51,15 +79,6 @@ export class ColumnsService {
 
     return column;
   }
- 
-  async remove(user: User, projectId: number, columnId: number) {
-
-    const column = await this.getOne(user, projectId, columnId);
-    await this.columnsRepository.remove(column);
-
-    // update all column's order of the project
-    await this.updateOrdersOfProjectAfterRemove(column);
-  }
 
   private async updateOrdersOfProjectAfterRemove(column: ColumnEntity) {
     const project = column.project;
@@ -72,26 +91,6 @@ export class ColumnsService {
       remainingColumns[i].order = i + 1;
       await this.columnsRepository.save(remainingColumns[i]);
     }
-  }
-
-  async move(user: User, projectId: number, columnId: number, newOrder: number)  {
-    
-    const column = await this.getOne(user, projectId, columnId);
-    if (!column) {
-      throw new NotFoundException('Column not found');
-    }
- 
-    const otherColumns = await this.columnsExceptMovedColumn(column, columnId); 
-
-    if(newOrder < 1 || newOrder > otherColumns.length + 1){
-      throw new ForbiddenException(`bad range`); 
-    }
-
-    await this.updateColumnsOrder(newOrder, column, otherColumns);
-
-    column.order = newOrder;
-
-    await this.columnsRepository.save(column);
   }
 
   private async updateColumnsOrder(newOrder: number, column: ColumnEntity, otherColumns: ColumnEntity[]) {
