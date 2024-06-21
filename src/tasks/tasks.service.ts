@@ -65,7 +65,8 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    Object.assign(task, dto);const fields = await this.taskFieldsRepository.find({ where: { project: task.column.project } });
+    Object.assign(task, dto);
+    const fields = await this.taskFieldsRepository.find({ where: { project: task.column.project } });
 
     const savedTask = await this.tasksRepository.save(task);
 

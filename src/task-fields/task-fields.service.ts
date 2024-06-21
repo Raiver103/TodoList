@@ -71,8 +71,7 @@ export class TaskFieldsService {
   async findAll(user: User, projectId: number) {
     const project = await this.projectsRepository.findOne({ where: { id: projectId }, 
       relations: ['user'] });
-
-
+ 
     this.isProjectNull(project);  
 
     if (project.user.id !== user.id) {
