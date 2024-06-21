@@ -18,8 +18,8 @@ export class ColumnsService {
   async create(user: User, projectId: number, column: CreateColumnDto)  {
     
     const project = await this.projectsService.getOne(user, projectId);
-    column.order = project.columns.length + 1; 
     const newColumn = this.columnsRepository.create({ ...column, project });  
+    newColumn.order = project.columns.length + 1; 
     return this.columnsRepository.save(newColumn);
   }
 
@@ -32,7 +32,7 @@ export class ColumnsService {
  
   async remove(user: User, projectId: number, columnId: number) {
 
-    const column = await this.getOne(user, projectId, columnId);
+    const column = await this.getOne(user, projectId, columnId); 
     await this.columnsRepository.remove(column);
  
     await this.updateOrdersOfProjectAfterRemove(column);

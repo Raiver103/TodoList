@@ -6,7 +6,5 @@ export class CreateColumnDto {
   @ApiProperty( {example: "column", description: "name"} ) 
   @IsString() 
   @Length(1, 100)
-  name: string;
-  
-  order: number; 
+  name: string; 
 }
