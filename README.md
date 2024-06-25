@@ -9,6 +9,14 @@ Todo List like Trello
 * PostgreSQL
 * TypeORM
 
+## Features
+* Custom task management
+* Dragging logic
+* Authentication
+* Swagger
+* Cascade removing
+* Validation
+
 ## Installation
 
 ```bash
